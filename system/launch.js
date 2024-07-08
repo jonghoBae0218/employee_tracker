@@ -73,7 +73,15 @@ function callPrompt(){
                     resolve(true);
                     break;
 
-               
+                case ACTIONS.VIEW_ROLES:
+                    await viewRoles();
+                    resolve(true);
+                    break;
+                    
+                case ACTIONS.VIEW_EMPLOYEES:
+                    await viewEmployees();
+                    resolve(true);
+                    break;
                 
                 default:
                     resolve(true); // For other actions, resolve with true
@@ -89,18 +97,27 @@ function callPrompt(){
 
 
 async function showDepartments(){
-    const query = await pool.query("SELECT * FROM department");
+    const query = await pool.query("SELECT department.id, department.name FROM department");
     console.table(query.rows);
-    
+}
+
+async function viewRoles(){
+    const query = await pool.query(`SELECT role.id, role.title, role.salary, department.name AS department FROM role
+                                    JOIN department ON role.department_id = department.id`);
+    console.table(query.rows);
+}
+
+async function viewEmployees(){
+    // const query = await pool.query(`SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name, role.salary, employee.manager_id
+    //                                 FROM employee JOIN role.title ON = employee.role_id = role.id`);
+    // console.table(query.rows);
+
 }
 
 async function init(){
     
     await pool.connect();
     console.log("Hi");
-
-    // await showDepartments();
-
 
     let iterate = true;
     while(iterate){
