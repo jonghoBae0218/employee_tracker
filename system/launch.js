@@ -82,6 +82,18 @@ function callPrompt(){
                     await viewEmployees();
                     resolve(true);
                     break;
+                case ACTIONS.ADD_DEPARTMENT:
+                    await addDepartment();
+                    resolve(true);
+                    break;
+                case ACTIONS.ADD_ROLE:
+                    await addRole();
+                    resolve(true);
+                    break;
+                case ACTIONS.ADD_EMPLOYEE:
+                    await addEmployee();
+                    resolve(true);
+                    break;
                 
                 default:
                     resolve(true); // For other actions, resolve with true
@@ -115,6 +127,24 @@ async function viewEmployees(){
                                     LEFT JOIN employee manager ON employee.manager_id = manager.id`);
     console.table(query.rows);
     
+}
+async function addDepartment(){
+    const department = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'name',
+            message: "Enter department name"
+        }
+    ]);
+    
+    await pool.query("INSERT INTO department (name) VALUES ($1)", [department.name]);
+
+}
+async function addRole(){
+
+}
+async function addEmployee(){
+
 }
 
 async function init(){
