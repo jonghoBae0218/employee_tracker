@@ -8,8 +8,8 @@ const ACTIONS = {
     ADD_DEPARTMENT: 4,
     ADD_ROLE: 5,
     ADD_EMPLOYEE: 6,
-    UPDATE_EMPLOYEE: 7,
-    // UPDATE_EMPLOYEE_MANAGER: 8,
+    UPDATE_EMPLOYEE_ROLE: 7,
+    UPDATE_EMPLOYEE_MANAGER: 8,
     // VIEW_EMPLOYEES_BY_MANAGER: 9,
     // VIEW_EMPLOYEES_BY_DEPARTMENT: 10,
     // DELETE_DEPARTMENT: 11,
@@ -31,8 +31,8 @@ const prompt = [
             { name: 'Add a department', value: ACTIONS.ADD_DEPARTMENT },
             { name: 'Add a role', value: ACTIONS.ADD_ROLE },
             { name: 'Add an employee', value: ACTIONS.ADD_EMPLOYEE },
-            { name: 'Update an employee role', value: ACTIONS.UPDATE_EMPLOYEE },
-            // { name: 'Update an employee manager', value: ACTIONS.UPDATE_EMPLOYEE_MANAGER },
+            { name: 'Update an employee role', value: ACTIONS.UPDATE_EMPLOYEE_ROLE },
+            { name: 'Update an employee manager', value: ACTIONS.UPDATE_EMPLOYEE_MANAGER },
             // { name: 'View employees by manager', value: ACTIONS.VIEW_EMPLOYEES_BY_MANAGER },
             // { name: 'View employees by department', value: ACTIONS.VIEW_EMPLOYEES_BY_DEPARTMENT },
             // { name: 'Delete a department', value: ACTIONS.DELETE_DEPARTMENT },
@@ -93,8 +93,12 @@ function callPrompt(){
                     await addEmployee();
                     resolve(true);
                     break;
-                case ACTIONS.UPDATE_EMPLOYEE:
-                    await updateEmployee();
+                case ACTIONS.UPDATE_EMPLOYEE_ROLE:
+                    await updateEmployeeRole();
+                    resolve(true);
+                    break;
+                case ACTIONS.UPDATE_EMPLOYEE_MANAGER:
+                    await updateEmployeeManager();
                     resolve(true);
                     break;
                 default:
@@ -130,6 +134,7 @@ async function viewEmployees(){
     console.table(query.rows);
     
 }
+
 async function addDepartment(){
     const department = await inquirer.prompt([
         {
@@ -143,7 +148,6 @@ async function addDepartment(){
     console.log("Success");
 
 }
-
 
 async function addRole(){
     const departments = await pool.query("SELECT * FROM department");
@@ -182,6 +186,7 @@ async function addRole(){
                 console.log("Role added successfully");;
 
 }
+
 async function addEmployee(){
 
     const roles = await pool.query("SELECT * FROM role");
@@ -224,7 +229,7 @@ async function addEmployee(){
 
 }
 
-async function updateEmployee(){
+async function updateEmployeeRole(){
     const targetEmployee = await pool.query("SELECT * FROM employee");
     const roleList = await pool.query("SELECT * FROM role");
 
@@ -239,7 +244,13 @@ async function updateEmployee(){
             type: 'list',
             name: 'role',
             message: "Select updated role",
-            choices: roleList.rows.map(role => ({name: role.title, value: role.id}))
+            choices: 
+            [
+                {
+                    name: 'No Manager',
+                    value: null
+                },
+                 ...roleList.rows.map(role => ({name: role.title, value: role.id}))]
         }
     ])
 
@@ -247,6 +258,36 @@ async function updateEmployee(){
                     SET role_id = $1
                     WHERE id = $2;`, [prompt.role, prompt.employee]);
     console.log("Role updated successfully");
+}
+
+async function updateEmployeeManager(){
+    const targetEmployee = await pool.query("SELECT * FROM employee");
+    const managerList = await pool.query("SELECT * FROM employee");
+
+    const prompt = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'employee',
+            message: "Select employee to change",
+            choices: targetEmployee.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id}))
+        },
+        {
+            type: 'list',
+            name: 'manager',
+            message: "Select updated manager",
+            choices: managerList.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id})),
+        }
+    ])
+    
+    if(prompt.employee === prompt.manager){
+        console.log("One cannot be one's manager");
+        return;
+    }
+
+    await pool.query(`UPDATE employee
+                    SET manager_id = $1
+                    WHERE id = $2;`, [prompt.manager, prompt.employee]);
+    console.log("Manager updated successfully");
 }
 
 async function init(){
