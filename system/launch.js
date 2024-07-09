@@ -138,9 +138,44 @@ async function addDepartment(){
     ]);
     
     await pool.query("INSERT INTO department (name) VALUES ($1)", [department.name]);
+    console.log("Success");
 
 }
 async function addRole(){
+    const departments = await pool.query("SELECT * FROM department");
+    await console.log(departments.rows);
+    const role = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'title',
+            message: "Enter role title"
+        },
+        {
+            type: 'input',
+            name: 'salary',
+            message: "Enter role salary"
+        },
+        {
+            type: 'list',
+            name: 'department',
+            message: "Select role department",
+            choices: departments.rows.map(department => (department.name))
+
+            
+        }
+    ]);
+    console.log(role);
+
+    const depQuery = await pool.query('SELECT id FROM department WHERE name = $1',[role.department]);
+    const depId = depQuery.rows[0].id;
+
+
+    await pool.query(`
+                    INSERT INTO role (title, salary, department_id)
+                    VALUES ($1, $2, $3)
+                `, [role.title, role.salary, depId]);
+                
+                console.log("Role added successfully");;
 
 }
 async function addEmployee(){
