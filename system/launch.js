@@ -1,6 +1,8 @@
+// Dependencies
 const inquirer = require('inquirer');
 const { Pool } = require('pg');
 
+// Action list
 const ACTIONS = {
     VIEW_DEPARTMENTS: 1,
     VIEW_ROLES: 2,
@@ -15,10 +17,11 @@ const ACTIONS = {
     // DELETE_DEPARTMENT: 11,
     // DELETE_ROLE: 12,
     // DELETE_EMPLOYEE: 13,
-    // VIEW_BUDGET: 14,
+    VIEW_BUDGET: 14,
     EXIT: 15
 };
 
+// Prompt to ask questions.
 const prompt = [
     {
         type: 'list',
@@ -38,12 +41,13 @@ const prompt = [
             // { name: 'Delete a department', value: ACTIONS.DELETE_DEPARTMENT },
             // { name: 'Delete a role', value: ACTIONS.DELETE_ROLE },
             // { name: 'Delete an employee', value: ACTIONS.DELETE_EMPLOYEE },
-            // { name: 'View the total utilized budget of a department', value: ACTIONS.VIEW_BUDGET },
+            { name: 'View the total utilized budget of a department', value: ACTIONS.VIEW_BUDGET },
             { name: 'Exit', value: ACTIONS.EXIT },
         ]
     },
 ]
 
+// Pool to connect to database
 const pool = new Pool(
     {
       user: 'postgres',
@@ -55,13 +59,13 @@ const pool = new Pool(
   )
   
 
-
+// Singel time call prompt.
 function callPrompt(){
     return new Promise((resolve, reject) => {
         inquirer
         .prompt(prompt)
         .then(async (answers) => {
-            console.log(answers.action);
+            // Choose action based on prompt answer.
             switch(answers.action){
                 case ACTIONS.EXIT:
                     resolve(false); // Return false if user selects EXIT
@@ -101,8 +105,14 @@ function callPrompt(){
                     await updateEmployeeManager();
                     resolve(true);
                     break;
+
+
+                case ACTIONS.VIEW_BUDGET:
+                    await viewBudget();
+                    resolve(true);
+                    break
                 default:
-                    resolve(true); // For other actions, resolve with true
+                    resolve(true); 
                     break;
             }
         })
@@ -150,6 +160,7 @@ async function addDepartment(){
 }
 
 async function addRole(){
+    // Get list of departments
     const departments = await pool.query("SELECT * FROM department");
     await console.log(departments.rows);
     const role = await inquirer.prompt([
@@ -172,25 +183,25 @@ async function addRole(){
             
         }
     ]);
-    console.log(role);
-
+    // Use the role answer to find departmentID
     const depQuery = await pool.query('SELECT id FROM department WHERE name = $1',[role.department]);
     const depId = depQuery.rows[0].id;
 
-
+    //  Insert data based on given prompt
     await pool.query(`
                     INSERT INTO role (title, salary, department_id)
                     VALUES ($1, $2, $3)
                 `, [role.title, role.salary, depId]);
                 
-                console.log("Role added successfully");;
+                console.log("Sucess");;
 
 }
 
 async function addEmployee(){
-
+    // Get lists needed for the action.
     const roles = await pool.query("SELECT * FROM role");
     const managers = await pool.query("SELECT * FROM employee");
+
     const employee = await inquirer.prompt([
         {
             type: 'input',
@@ -212,6 +223,7 @@ async function addEmployee(){
             type: 'list',
             name: 'manager',
             message: "Select employee manager",
+            // Add No manager option to choices.
             choices: [{
                 name: 'No Manager',
                 value: null
@@ -219,13 +231,13 @@ async function addEmployee(){
              ...managers.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id})) ]
         }
     ]);
-
+    console.log(employee)
     await pool.query(`
         INSERT INTO employee (first_name, last_name, role_id, manager_id)
                     VALUES ($1, $2, $3, $4)`, 
                     [employee.first_name, employee.last_name, employee.role,  employee.manager]);
     
-    console.log("Role added successfully");;
+    console.log("Success");;
 
 }
 
@@ -244,23 +256,18 @@ async function updateEmployeeRole(){
             type: 'list',
             name: 'role',
             message: "Select updated role",
-            choices: 
-            [
-                {
-                    name: 'No Manager',
-                    value: null
-                },
-                 ...roleList.rows.map(role => ({name: role.title, value: role.id}))]
+            choices: roleList.rows.map(role => ({name: role.title, value: role.id}))
         }
     ])
 
     await pool.query(`UPDATE employee
                     SET role_id = $1
                     WHERE id = $2;`, [prompt.role, prompt.employee]);
-    console.log("Role updated successfully");
+    console.log("Sucess");
 }
 
 async function updateEmployeeManager(){
+    // Get lists needed for the action.
     const targetEmployee = await pool.query("SELECT * FROM employee");
     const managerList = await pool.query("SELECT * FROM employee");
 
@@ -275,10 +282,15 @@ async function updateEmployeeManager(){
             type: 'list',
             name: 'manager',
             message: "Select updated manager",
-            choices: managerList.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id})),
+            choices: [{
+                name: 'No Manager',
+                value: null
+            },
+             ...managerList.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id}))],
         }
     ])
     
+    // exit current function if manager and employee is same.
     if(prompt.employee === prompt.manager){
         console.log("One cannot be one's manager");
         return;
@@ -287,19 +299,41 @@ async function updateEmployeeManager(){
     await pool.query(`UPDATE employee
                     SET manager_id = $1
                     WHERE id = $2;`, [prompt.manager, prompt.employee]);
-    console.log("Manager updated successfully");
+    console.log("successful");
 }
 
-async function init(){
+async function viewBudget(){
+    const departments = await pool.query("SELECT * FROM department");
+        const department = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'department_id',
+                message: "Select the department",
+                choices: departments.rows.map(department => ({ name: department.name, value: department.id }))
+            }
+        ]);
+
+        const query = await pool.query(`
+            SELECT SUM(role.salary) AS total_budget
+            FROM role
+            WHERE role.department_id = $1`
+            , [department.department_id]);
+
+        console.table(query.rows);
     
+}
+
+// Init function.
+async function init(){
+    // Connect to db.
     await pool.connect();
-    console.log("Hi");
 
     let iterate = true;
     while(iterate){
+        // Iterate until callPrompt is resolved as false.
         iterate = await callPrompt();
     }
-    console.log("Exited gracefully");
+
     process.exit(0);
 }
 
