@@ -141,6 +141,8 @@ async function addDepartment(){
     console.log("Success");
 
 }
+
+
 async function addRole(){
     const departments = await pool.query("SELECT * FROM department");
     await console.log(departments.rows);
@@ -179,6 +181,44 @@ async function addRole(){
 
 }
 async function addEmployee(){
+
+    const roles = await pool.query("SELECT * FROM role");
+    const managers = await pool.query("SELECT * FROM employee");
+    const employee = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'first_name',
+            message: "Enter employee first name"
+        },
+        {
+            type: 'input',
+            name: 'last_name',
+            message: "Enter employee last name"
+        },
+        {
+            type: 'list',
+            name: 'role',
+            message: "Select employee role",
+            choices: roles.rows.map(role => ({name : role.title , value : role.id})) 
+        },
+        {
+            type: 'list',
+            name: 'manager',
+            message: "Select employee manager",
+            choices: [{
+                name: 'No Manager',
+                value: null
+            },
+             ...managers.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id})) ]
+        }
+    ]);
+
+    await pool.query(`
+        INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                    VALUES ($1, $2, $3, $4)`, 
+                    [employee.first_name, employee.last_name, employee.role,  employee.manager]);
+    
+    console.log("Role added successfully");;
 
 }
 
