@@ -31,7 +31,7 @@ const prompt = [
             { name: 'Add a department', value: ACTIONS.ADD_DEPARTMENT },
             { name: 'Add a role', value: ACTIONS.ADD_ROLE },
             { name: 'Add an employee', value: ACTIONS.ADD_EMPLOYEE },
-            { name: 'Add and update an employee role', value: ACTIONS.UPDATE_EMPLOYEE },
+            { name: 'Update an employee role', value: ACTIONS.UPDATE_EMPLOYEE },
             // { name: 'Update an employee manager', value: ACTIONS.UPDATE_EMPLOYEE_MANAGER },
             // { name: 'View employees by manager', value: ACTIONS.VIEW_EMPLOYEES_BY_MANAGER },
             // { name: 'View employees by department', value: ACTIONS.VIEW_EMPLOYEES_BY_DEPARTMENT },
@@ -47,7 +47,6 @@ const prompt = [
 const pool = new Pool(
     {
       user: 'postgres',
-      // TODO: Enter PostgreSQL password
       password: 'Qowhdgh0218^^',
       host: 'localhost',
       database: 'company_db'
@@ -94,7 +93,10 @@ function callPrompt(){
                     await addEmployee();
                     resolve(true);
                     break;
-                
+                case ACTIONS.UPDATE_EMPLOYEE:
+                    await updateEmployee();
+                    resolve(true);
+                    break;
                 default:
                     resolve(true); // For other actions, resolve with true
                     break;
@@ -220,6 +222,31 @@ async function addEmployee(){
     
     console.log("Role added successfully");;
 
+}
+
+async function updateEmployee(){
+    const targetEmployee = await pool.query("SELECT * FROM employee");
+    const roleList = await pool.query("SELECT * FROM role");
+
+    const prompt = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'employee',
+            message: "Select employee to change",
+            choices: targetEmployee.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id}))
+        },
+        {
+            type: 'list',
+            name: 'role',
+            message: "Select updated role",
+            choices: roleList.rows.map(role => ({name: role.title, value: role.id}))
+        }
+    ])
+
+    await pool.query(`UPDATE employee
+                    SET role_id = $1
+                    WHERE id = $2;`, [prompt.role, prompt.employee]);
+    console.log("Role updated successfully");
 }
 
 async function init(){
