@@ -162,7 +162,6 @@ async function addDepartment(){
 async function addRole(){
     // Get list of departments
     const departments = await pool.query("SELECT * FROM department");
-    await console.log(departments.rows);
     const role = await inquirer.prompt([
         {
             type: 'input',
@@ -231,7 +230,6 @@ async function addEmployee(){
              ...managers.rows.map(employee => ({name: employee.last_name + " " + employee.first_name, value: employee.id})) ]
         }
     ]);
-    console.log(employee)
     await pool.query(`
         INSERT INTO employee (first_name, last_name, role_id, manager_id)
                     VALUES ($1, $2, $3, $4)`, 
@@ -299,7 +297,7 @@ async function updateEmployeeManager(){
     await pool.query(`UPDATE employee
                     SET manager_id = $1
                     WHERE id = $2;`, [prompt.manager, prompt.employee]);
-    console.log("successful");
+    console.log("Success");
 }
 
 async function viewBudget(){
@@ -314,10 +312,12 @@ async function viewBudget(){
         ]);
 
         const query = await pool.query(`
-            SELECT SUM(role.salary) AS total_budget
-            FROM role
-            WHERE role.department_id = $1`
-            , [department.department_id]);
+            SELECT SUM(role.salary) AS total_salary
+            FROM employee
+            JOIN role ON employee.role_id = role.id
+            JOIN department ON role.department_id = department.id
+            WHERE department.name = 'Dep A'
+        `);
 
         console.table(query.rows);
     
